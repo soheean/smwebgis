@@ -249,30 +249,17 @@
 	</script>
 	
 	<body onload=onPageLoad()>
-	<div id="header">四川省成都市麓山国际社区WebGIS
+	<div id="header"><h1 align="center">四川省成都市麓山国际社区WebGIS</h1>
 	</div>
 	<div id="mainContent">
+		<div id="map">		</div>
 		<div id="queryResultPanel" > </div>
-		<div id="map">
+	</div>
 		<input type="button" value="放大" onclick="ZoomIn()" />
 		<input type="button" value="缩小" onclick="ZoomOut()" />
 		<input name="queryByGeo" type="button" onClick="drawGeometry()" value="几何查询">
 		<input name="distanceMeasure" type="button" onClick="distanceMeasure()" value="交互式面积量算">
 		<input name="distanceMeasure" type="button" onClick="distancelineMeasure()" value="交互式距离量算">
-		</div>
-	</div>
-	<div id="footer">This is the footer</div>
-	
-	<div id="map" style="position:relative;left:0px;right:0px;width:700px;height:550px;">
+	<div id="footer" align = "center">版权所有CopyRight<a href="https://github.com/soheean/smwebgis">soheean/github源码</a>	</div>
 
-	<input type="button" value="放大" onclick="ZoomIn()" />
-	<input type="button" value="缩小" onclick="ZoomOut()" />
-	<input name="queryByGeo" type="button" onClick="drawGeometry()" value="几何查询">
-	<input name="distanceMeasure" type="button" onClick="distanceMeasure()" value="交互式面积量算">
-	<input name="distanceMeasure" type="button" onClick="distancelineMeasure()" value="交互式距离量算">
-	</div>
-	<div id="queryResultPanel" style="width:600px;left:10px;top:420px;">			
-						
-		</div>
-	</body>
 </html>
