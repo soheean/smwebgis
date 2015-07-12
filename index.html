@@ -1,0 +1,278 @@
+<html>
+	<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" >
+	<title>麓山国际社区WebGIS</title>
+	<link href="layout.css" rel="stylesheet" type="text/css" />
+	</head>
+	<script src="libs/SuperMap.Include.js"></script>
+	<script type="text/javascript">
+	var map,layer,layer1,drawPolygon,drawLine,
+		    style = {
+                strokeColor: "#304DBE",
+                strokeWidth: 2,
+                pointerEvents: "visiblePainted",
+                fillColor: "#304DBE",
+                fillOpacity: 0.8
+            },vectorLayer,drawPolygon1, markerLayer,
+		    style = {
+                strokeColor: "#333333",
+                strokeWidth: 2,
+                pointerEvents: "visiblePainted",
+                fillColor: "#304DBE",
+                fillOpacity: 0.8				
+            };
+	// 设置访问的GIS服务地址
+	var url = "http://localhost:8090/iserver/services/map-lsgj/rest/maps/lsgj";
+	var url1 = "http://localhost:8090/iserver/services/map-lsgj/rest/maps/商业&教育&娱乐";
+	function onPageLoad() {
+		// 创建客户端矢量图层，用于显示绘制的几何对象
+		vectorLayer = new SuperMap.Layer.Vector("Vector Layer");
+        // 创建marks图层，显示查询结果
+		markerLayer = new SuperMap.Layer.Markers("Markers");
+		// 创建绘制面的控件
+        drawPolygon1 = new SuperMap.Control.DrawFeature(vectorLayer, SuperMap.Handler.Polygon);     
+        drawPolygon1.events.on({"featureadded": drawplCompleted});
+	
+		//创建客户端矢量图层，用于绘制线段
+		lineLayer = new SuperMap.Layer.Vector("lineLayer");
+		lineLayer.style = style;
+		//创建绘制线段的控件
+		drawLine = new SuperMap.Control.DrawFeature(lineLayer,SuperMap.Handler.Path,{multi: false});
+		// 设置绘制线段控件的监听事件
+		drawLine.events.on({"featureadded": drawlineCompleted});
+		//创建绘制线段的控件
+		drawPolygon = new SuperMap.Control.Measure(SuperMap.Handler.Polygon,{immediate: true});
+		// 设置绘制线段控件的监听事件
+		drawPolygon.events.on({"measure": drawCompleted});
+		// 创建地图对象
+		map = new SuperMap.Map("map",{controls: [                      
+            new SuperMap.Control.ScaleLine(),
+			new SuperMap.Control.LayerSwitcher(),
+            new SuperMap.Control.PanZoomBar({showSlider:true}),
+            new SuperMap.Control.Navigation({
+                dragPanOptions: {
+                                    enableKinetic: true
+                                }
+            }),drawPolygon1]
+        });
+		map.addControl(new SuperMap.Control.OverviewMap());
+		//map.addControl(new SuperMap.Control.Measure());	
+		// 创建图层对象
+		layer = new SuperMap.Layer.TiledDynamicRESTLayer("lsgj", url,{transparent: true, cacheEnabled: true}, {maxResolution:"auto"});
+		layer.events.on({"layerInitialized": addLayer});
+		//layer1 = new SuperMap.Layer.TiledDynamicRESTLayer("商业&教育&娱乐", url1,{transparent: true, cacheEnabled: true}, {maxResolution:"auto"});
+		//layer1.events.on({"layerInitialized": map.addLayer(layer1)});
+		
+		map.addControl(drawLine);
+		map.addControl(drawPolygon);
+		}
+		function addLayer() {
+		// 向Map中添加图层
+		map.addLayer(layer);
+		map.setCenter(new SuperMap.LonLat(0, 0), 0);
+	}
+	// 放大 
+	function ZoomIn() { map.zoomIn(); } 
+	// 缩小 
+	function ZoomOut() { map.zoomOut(); }
+	// 绘制线段结束后触发函数，获取绘制的线段，并执行量算
+		function drawCompleted(arguments){
+			// 屏蔽绘制线段控件
+		    drawPolygon.deactivate();
+			
+			alert("面积为："+arguments.measure + "平方米");
+
+		}
+
+		//距离量算
+		function distanceMeasure(){
+			// 激活绘制线段控件
+			drawPolygon.activate();
+		}
+		
+		// 绘制线段结束后触发函数，获取绘制的线段，并执行量算
+		function drawlineCompleted(arguments){
+			//屏蔽绘制线段控件
+		    drawLine.deactivate();
+			// 获取绘制的线段
+            var geometry = arguments.feature.geometry,
+			measureParam = new SuperMap.REST.MeasureParameters(geometry);
+			
+			// 定义量算服务对象，执行量算
+			var measureService = new SuperMap.REST.MeasureService(url, {
+											measureMode: SuperMap.REST.MeasureMode.DISTANCE,
+											eventListeners:{'processCompleted': measurelineCompleted,'processFailed':processFailed}
+											});
+			measureService.processAsync(measureParam);
+		}
+
+		//距离量算
+		function distancelineMeasure(){
+			//清空上一次绘制的线段
+			 lineLayer.removeAllFeatures();
+			// 激活绘制线段控件
+			drawLine.activate();
+		}
+
+		// 获取量算结果
+		function measurelineCompleted(measureEventArgs){
+			// 获取量算结果和计量单位
+			var distance = measureEventArgs.result.distance,
+                unit = measureEventArgs.result.unit;
+            if (distance != -1) {
+                alert(distance +unit);
+            }
+		}
+		//量算失败触发函数
+		function processFailed(MeasureEventArgs){
+		   alert("失败");
+		}
+		
+		// 激活绘制面对象的操作
+		 function drawGeometry() {
+            //先清除上次的显示结果
+            vectorLayer.removeAllFeatures();
+            markerLayer.clearMarkers();
+            drawPolygon1.activate();
+        }
+
+		// 绘制面对象结束后处理函数,执行几何查询
+		function drawplCompleted(evnetArg){
+			drawPolygon1.deactivate();
+		    // 获取绘制的对象，并显示在vector图层上
+			var feature = new SuperMap.Feature.Vector();
+            feature.geometry = evnetArg.feature.geometry,
+            feature.style = style;
+            vectorLayer.addFeatures(feature);
+			
+			// 设置查询参数
+            var queryParam, queryByGeometryParameters, queryByGeoService;
+            //FilterParameter 必设 name（查询地图图层名）
+            queryParam = new SuperMap.REST.FilterParameter({
+                name: "villa@villa",
+                fields:["SMID","别墅名称","简介","别墅类型"]
+            }),
+			//QueryByGeometryParameters 参数必设	queryParams
+            queryByGeometryParameters = new SuperMap.REST.QueryByGeometryParameters({
+                queryParams: [queryParam],
+				geometry:feature.geometry,
+				spatialQueryMode: SuperMap.REST.SpatialQueryMode.INTERSECT
+            }),
+
+            queryByGeoService = new SuperMap.REST.QueryByGeometryService(url, {
+                eventListeners: {"processCompleted": processCompleted, "processFailed": processplFailed}});
+            queryByGeoService.processAsync(queryByGeometryParameters);
+        }
+		// 获取查询结果
+        function processCompleted(queryEventArgs) {
+            var result = queryEventArgs.result;
+
+			//显示查找到的矢量要素
+			if (result && result.totalCount>0) {
+					var resultTable = "";
+					for	(var i = 0;	i < result.recordsets.length; i++) {											
+						if (result.recordsets[i].features) {
+							var arrFields = new Array();
+							var intFieldCount = result.recordsets[i].fields.length;
+							resultTable += "<table align='left' style='width: 600px' border='1'>";
+							var strTableHead = ""; 
+							// 将字段名称列于表格首行
+							for (var n = 0;n < intFieldCount;n++)
+							{ 										
+										var fieldName = result.recordsets[i].fields[n];
+										strTableHead += "<td>";
+										strTableHead += fieldName;
+										strTableHead += "</td>";
+										arrFields.push(fieldName);
+							}
+							resultTable += "<tr>" + strTableHead + "</tr>";
+							for(var	k=0;k<result.recordsets[i].features.length;k++){
+								// 获取Geometry 将其显示在Markers Layer上。
+								var feature =  result.recordsets[i].features[k];
+								var point = result.recordsets[i].features[k].geometry,
+                                size = new SuperMap.Size(44, 33),
+                                offset = new SuperMap.Pixel(-(size.w/2), -size.h),
+                                icon = new SuperMap.Icon("resource/controlImages/marker.png", size, offset);
+								markerLayer.addMarker(new SuperMap.Marker(new SuperMap.LonLat(point.x, point.y), icon));
+								// 将属性值放入表格中
+								resultTable += "<tr>";
+								for(var	j=0;j<intFieldCount;j++){
+									resultTable += "<td>";
+									var fName =arrFields[j]
+									resultTable += feature.attributes[fName];
+									resultTable += "</td>";
+								}
+								resultTable += "</tr>";
+							}
+							resultTable += "</table>";
+						}
+					}
+				}
+				else{
+							resultTable = "<p>无查询结果！</p>";
+				}
+                document.getElementById("queryResultPanel").innerHTML = resultTable;
+		}
+        function processplFailed(e) {
+            alert(e.error.errorMsg);
+        }
+        function clearFeatures() {
+            //先清除上次的显示结果
+            vectorLayer.removeAllFeatures();
+            vectorLayer.refresh();
+        }
+	/*
+	//量算
+		function distanceMeasure(){
+		// 定义量算线段，设置量算参数
+		var line = new SuperMap.Geometry.LineString([
+		new SuperMap.Geometry.Point(10,29.9),
+		new SuperMap.Geometry.Point(99.9,29.9)
+		]),
+		measureParam = new SuperMap.REST.MeasureParameters(line);
+		// 定义量算服务对象，执行量算
+		var measureService = new SuperMap.REST.MeasureService(url, { measureMode: SuperMap.REST.MeasureMode.DISTANCE, eventListeners:{'processCompleted': measureCompleted,'processFailed':processFailed}
+		});
+		measureService.processAsync(measureParam);
+		}
+	// 获取量算结果
+	function measureCompleted(measureEventArgs)
+	{ 
+		var distance = measureEventArgs.result.distance,
+		unit = measureEventArgs.result.unit;
+		if (distance != -1)
+		{
+			alert(distance +unit); 
+		} 
+	}
+	*/
+	</script>
+	
+	<body onload=onPageLoad()>
+	<div id="header">四川省成都市麓山国际社区WebGIS
+	</div>
+	<div id="mainContent">
+		<div id="queryResultPanel" > </div>
+		<div id="map">
+		<input type="button" value="放大" onclick="ZoomIn()" />
+		<input type="button" value="缩小" onclick="ZoomOut()" />
+		<input name="queryByGeo" type="button" onClick="drawGeometry()" value="几何查询">
+		<input name="distanceMeasure" type="button" onClick="distanceMeasure()" value="交互式面积量算">
+		<input name="distanceMeasure" type="button" onClick="distancelineMeasure()" value="交互式距离量算">
+		</div>
+	</div>
+	<div id="footer">This is the footer</div>
+	
+	<div id="map" style="position:relative;left:0px;right:0px;width:700px;height:550px;">
+
+	<input type="button" value="放大" onclick="ZoomIn()" />
+	<input type="button" value="缩小" onclick="ZoomOut()" />
+	<input name="queryByGeo" type="button" onClick="drawGeometry()" value="几何查询">
+	<input name="distanceMeasure" type="button" onClick="distanceMeasure()" value="交互式面积量算">
+	<input name="distanceMeasure" type="button" onClick="distancelineMeasure()" value="交互式距离量算">
+	</div>
+	<div id="queryResultPanel" style="width:600px;left:10px;top:420px;">			
+						
+		</div>
+	</body>
+</html>
